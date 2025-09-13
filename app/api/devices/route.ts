@@ -80,8 +80,8 @@ export async function PATCH(req: Request) {
         status: "online",
       },
       $setOnInsert: {
-        name: name ?? `ESP32-${macNorm.slice(6)}`,
-        type: type ?? "eletronic",
+        name: `ESP32-${macNorm.slice(6)}`,
+        type: "eletronic",
         description: "",
         status: "online",
       },

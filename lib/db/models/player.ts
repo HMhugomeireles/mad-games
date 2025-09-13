@@ -12,14 +12,6 @@ const PlayerSchema = new Schema(
   },
   {
     timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: (_doc, ret) => {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
-      },
-    },
   }
 );
 

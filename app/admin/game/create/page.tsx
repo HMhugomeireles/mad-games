@@ -30,7 +30,7 @@ const GAME_MODES = [
 
 const Schema = z.object({
   name: z.string().min(1, "Nome é obrigatório").trim(),
-  type: z.enum(GAME_MODES, { required_error: "Modo é obrigatório" }),
+  type: z.enum(GAME_MODES, { error: "Modo é obrigatório" }),
   fieldMapId: z.string().min(1, "Field map é obrigatório"),
   date: z.string().optional(),
 });

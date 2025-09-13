@@ -22,13 +22,12 @@ const Schema = z.object({
   mac: z
     .string()
     .trim()
-    .optional()
     .transform((v) => (v ? v.toLowerCase().replace(/[^a-f0-9]/g, "") : ""))
     .refine((v) => v === "" || /^[a-f0-9]{12}$/.test(v), {
       message: "MAC deve ter 12 hex (podes escrever com : ou -)",
     }),
-  description: z.string().trim().optional(),
-  type: z.enum(TYPE_OPTIONS).default("eletronic"),
+  description: z.string().trim(),
+  type: z.enum(TYPE_OPTIONS),
 });
 
 type FormValues = z.infer<typeof Schema>;

@@ -38,7 +38,7 @@ export default function FieldMapCreateButton() {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
 
-  const form = useForm<Values>({
+  const form = useForm({
     resolver: zodResolver(Schema),
     defaultValues: {
       fieldMap: "",

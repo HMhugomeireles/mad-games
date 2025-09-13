@@ -10,6 +10,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
+
 // shadcn/ui
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const COLOR_OPTIONS = ["red","blue","green","yellow","purple","orange","no-color"] as const;
 
 const GroupSchema = z.object({
-  id: z.string().optional(),
   groupName: z.string().min(1, "Nome é obrigatório").trim(),
   groupColor: z.enum(COLOR_OPTIONS).or(z.string().min(1, "Cor é obrigatória")),
 });
@@ -47,7 +47,6 @@ export default function GameSettingsForm({
     resolver: zodResolver(Schema),
     defaultValues: {
       groups: (initialGroups && initialGroups.length ? initialGroups : DEFAULT_GROUPS).map((g) => ({
-        id: g.id,
         groupName: g.groupName,
         groupColor: g.groupColor,
       })),

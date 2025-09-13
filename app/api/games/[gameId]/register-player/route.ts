@@ -10,7 +10,10 @@ const BodySchema = z.object({
   rfid: z.string().optional()
 });
 
-export async function POST(req: Request, { params }: { params: { gameId: string } }) {
+export async function POST(
+  req: Request,
+   { params }: { params: Promise<{ gameId: string }> }
+) {
   const { gameId } = await params;
   await dbConnect();
   const json = await req.json();

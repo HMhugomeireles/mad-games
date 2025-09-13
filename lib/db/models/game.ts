@@ -86,19 +86,11 @@ const GameSchema = new Schema(
   },
   {
     timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: (_doc, ret) => {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
-      },
-    },
   }
 );
 
 export type GameDoc = {
-  id: string;
+  _id: string;
   name: string;
   date?: Date;
   status: GameStatus;

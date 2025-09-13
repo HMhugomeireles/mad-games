@@ -17,7 +17,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Switch } from "@/components/ui/switch";
 import { Pencil, Trash2 } from "lucide-react";
 
-const TYPES = ["cqb", "misto", "mato", "other"] as const;
+const TYPES = ["cqb", "misto", "mato"] as const;
 
 const SocialLink = z.object({
   platform: z.string().min(1).trim(),
@@ -25,13 +25,13 @@ const SocialLink = z.object({
 });
 
 const Schema = z.object({
+  id: z.string().optional(),
   fieldMap: z.string().min(1).trim(),
-  isActive: z.boolean().default(true),
-  type: z.enum(TYPES).default("other"),
+  isActive: z.boolean(),
+  type: z.enum(TYPES),
   description: z.string().optional(),
   location: z.string().optional(),
-  socialLinks: z.array(SocialLink).default([]),
-  createdBy: z.string().optional(),
+  socialLinks: z.array(SocialLink),
 });
 
 type Values = z.infer<typeof Schema>;
@@ -47,7 +47,6 @@ export default function FieldMapRowActions({
     description?: string;
     location?: string;
     socialLinks?: { platform: string; url: string }[];
-    createdBy?: string;
   };
 }) {
   const router = useRouter();
@@ -56,13 +55,13 @@ export default function FieldMapRowActions({
   const form = useForm<Values>({
     resolver: zodResolver(Schema),
     defaultValues: {
-      fieldMap: row.fieldMap,
-      isActive: row.isActive,
-      type: (row.type as any) ?? "other",
-      description: row.description ?? "",
-      location: row.location ?? "",
-      socialLinks: row.socialLinks ?? [],
-      createdBy: row.createdBy ?? "",
+      id: row.id || "",
+      fieldMap: row.fieldMap || "",
+      isActive: row.isActive || true,
+      type: TYPES.includes(row.type as typeof TYPES[number]) ? (row.type as typeof TYPES[number]) : "cqb",
+      description: row.description || "",
+      location: row.location || "",
+      socialLinks: Array.isArray(row.socialLinks) ? row.socialLinks : [],
     },
   });
 
@@ -228,18 +227,6 @@ export default function FieldMapRowActions({
                   </div>
                 )}
               </div>
-
-              <FormField
-                control={form.control}
-                name="createdBy"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>Criado por</FormLabel>
-                    <FormControl><Input placeholder="User ID" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
                 <DialogClose asChild><Button variant="outline" type="button">Cancelar</Button></DialogClose>

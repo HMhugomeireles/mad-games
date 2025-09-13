@@ -22,14 +22,6 @@ const FieldMapSchema = new Schema(
   },
   {
     timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: (_doc, ret) => {
-        ret.id = ret._id; // expõe id como alias
-        delete ret._id;
-        delete ret.__v;
-      },
-    },
   }
 );
 

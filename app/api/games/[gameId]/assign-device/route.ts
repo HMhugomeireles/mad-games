@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { dbConnect } from "@/lib/db/mongo";
 import Game from "@/lib/db/models/game";
-import Device from "@/lib/db/models/device";
 
 const Body = z.object({
   deviceId: z.string().min(1),

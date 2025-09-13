@@ -53,7 +53,7 @@ export default async function GameDetailsPage(
   if (!doc) return notFound();
 
   const game: G = {
-    id: doc.id || doc._id.toString(),
+    id: doc._id.toString(),
     name: doc.name ?? "",
     type: doc.type ?? "",
     status: doc.status ?? "planned",
@@ -63,7 +63,7 @@ export default async function GameDetailsPage(
       id: d.id,
       deviceId: String(d.deviceId),
       assignedPlayerId: d.assignedPlayerId ? String(d.assignedPlayerId) : null,
-      assignedMode: d.assignedMode ?? null,
+      havePlayerReturnDevice: !!d.havePlayerReturnDevice,
     })),
     gameSettings: {
       groups: doc.gameSettings?.groups

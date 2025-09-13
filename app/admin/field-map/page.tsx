@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
-import FieldMapCreateButton from "@/components/field-map-create-button";
-import FieldMapRowActions from "@/components/field-map-row-actions";
+import FieldMapCreateButton from "@/app/admin/field-map/_components/field-map-create-button";
+import FieldMapRowActions from "@/app/admin/field-map/_components/field-map-row-actions";
 
 export const revalidate = 0;
 export const dynamic = "force-dynamic";
@@ -94,7 +94,6 @@ export default async function FieldMapPage() {
                             description: (rows.find((x: any) => String(x._id ?? x.id) === r.id)?.description) ?? "",
                             location: r.location,
                             socialLinks: (rows.find((x: any) => String(x._id ?? x.id) === r.id)?.socialLinks) ?? [],
-                            createdBy: (rows.find((x: any) => String(x._id ?? x.id) === r.id)?.createdBy) ?? "",
                           }}
                         />
                       </TableCell>

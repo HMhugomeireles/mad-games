@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 // ------------------------------
 const Schema = z.object({
   name: z
-    .string({ required_error: "Nome é obrigatório" })
+    .string()
     .min(1, "Nome é obrigatório")
     .trim(),
   apd: z

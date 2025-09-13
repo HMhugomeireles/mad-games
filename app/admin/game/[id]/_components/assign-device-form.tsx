@@ -29,8 +29,8 @@ export function AssignDeviceForm({
   const Schema = z.object({
     deviceId: z.string().min(1, "Seleciona um device"),
     assignedPlayerId: z.string().min(1, "Seleciona um jogador"),
-    deviceStatus: z.enum(DEVICE_STATUS).default("offline"),
-    deviceLocation: z.string().optional().default(""),
+    deviceStatus: z.enum(DEVICE_STATUS),
+    deviceLocation: z.string(),
   });
   type Values = z.infer<typeof Schema>;
 
