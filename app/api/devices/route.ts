@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { dbConnect } from "@/lib/db/mongo";
-import Device from "@/lib/db/models/device";
+import Device, { DeviceDoc } from "@/lib/db/models/device";
 import { GAME_MODES } from "@/domain/game-modes";
 import { normalizeMac } from "@/lib/utils";
 
@@ -52,55 +52,49 @@ const Body = z.object({
   status: z.enum(["online", "offline"]),
 });
 
+let macNorm: string | undefined;
+
 export async function PATCH(req: Request) {
-  await dbConnect();
-
-  const json = await req.json().catch(() => ({}));
-  const parsed = Body.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400, headers: CORS });
-  }
-
-  const { mac, status } = parsed.data;
-  const raw = mac ?? status ;
-  if (!raw) {
-    return NextResponse.json({ error: "Campo 'mac' é obrigatório" }, { status: 400, headers: CORS });
-  }
-
-  const macNorm = normalizeMac(raw);
-  if (!/^[a-f0-9]{12}$/.test(macNorm)) {
-    return NextResponse.json({ error: "MAC inválido: use 12 hex (com ou sem separadores)" }, { status: 400, headers: CORS });
-  }
-
-  // upsert por MAC
   try {
-    const update = {
-      $set: {
-        mac: macNorm,
-        status: "online",
-      },
-      $setOnInsert: {
-        name: `ESP32-${macNorm.slice(6)}`,
-        type: "eletronic",
-        description: "",
-        status: "online",
-      },
-    };
+    await dbConnect();
+
+    const json = await req.json().catch(() => ({}));
+    const parsed = Body.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400, headers: CORS });
+    }
+
+    const { mac, status } = parsed.data;
+    const raw = mac ?? status;
+    if (!raw) {
+      return NextResponse.json({ error: "Campo 'mac' é obrigatório" }, { status: 400, headers: CORS });
+    }
+
+    const macNorm = normalizeMac(raw);
+    if (!/^[a-f0-9]{12}$/.test(macNorm)) {
+      return NextResponse.json({ error: "MAC inválido: use 12 hex (com ou sem separadores)" }, { status: 400, headers: CORS });
+    }
 
     const doc = await Device.findOneAndUpdate(
       { mac: macNorm },
-      update,
-      {
-        upsert: true,
-        new: true,
-        timestamps: true, // atualiza createdAt/updatedAt
-      } as any
+      { $set: { status: "online" } },
+      { new: true } // Mongoose: devolve documento atualizado
     ).lean();
 
-    const id = String((doc as any).id ?? (doc as any)._id);
-    return NextResponse.json({ id }, { status: 200, headers: CORS });
+    if (!doc) {
+      return Response.json(
+        { error: "Device não encontrado para este MAC." },
+        { status: 404, headers: CORS }
+      );
+    }
+
+    return Response.json(
+      { deviceId: String((doc as any)._id ?? (doc as any).id) },
+      { status: 200, headers: CORS }
+    );
   } catch (e: any) {
     // conflito raro de índice único: tenta ler novamente
+    console.error("PATCH /api/devices erro:", e);
     if (e?.code === 11000) {
       const existing = await Device.findOne({ mac: macNorm }).lean();
       if (existing) {

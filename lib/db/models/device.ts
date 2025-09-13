@@ -20,4 +20,15 @@ const DeviceSchema = new Schema(
   }
 );
 
+export type DeviceDoc = {
+  _id: string;
+  name: string;
+  mac?: string;
+  description?: string;
+  type: "eletronic" | "bracelet";
+  status: "online" | "offline";
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export default mongoose.models.Device || mongoose.model("Device", DeviceSchema);
