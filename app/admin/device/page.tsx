@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BadgeCheck } from "lucide-react";
 
 export const revalidate = 0;
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export default async function DevicesPage() {
     mac: d.mac ?? null,
     description: d.description ?? "",
     type: d.type ?? "eletronic",
-    createdAt: d.createdAt ? new Date(d.createdAt) : null,
+    status: d.status ?? "offline",
   }));
 
   return (
@@ -62,7 +63,7 @@ export default async function DevicesPage() {
                   <TableHead>Nome</TableHead>
                   <TableHead>MAC</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Criado em</TableHead>
+                  <TableHead className="text-right">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -87,9 +88,11 @@ export default async function DevicesPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {d.createdAt
-                          ? new Intl.DateTimeFormat("pt-PT", { dateStyle: "medium" }).format(d.createdAt)
-                          : "—"}
+                        {d.status === "online" ? (
+                          <BadgeCheck className="h-4 w-4 text-green-500"/>
+                        ) : (
+                          <BadgeCheck className="h-4 w-4 text-gray-400" />
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
