@@ -77,8 +77,8 @@ export async function PATCH(req: Request) {
 
     const doc = await Device.findOneAndUpdate(
       { mac: macNorm },
-      { $set: { status: "online" } },
-      { new: true } // Mongoose: devolve documento atualizado
+      { $set: { status: status } },
+      { new: true }
     ).lean();
 
     if (!doc) {
