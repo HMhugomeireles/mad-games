@@ -48,7 +48,7 @@ const CORS = {
 };
 
 const Body = z.object({
-  mac: z.string().optional(),
+  mac: z.string(),
   status: z.enum(["online", "offline"]),
 });
 
