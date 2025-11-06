@@ -81,7 +81,9 @@ const GameSchema = new Schema(
       groups: { type: [ParticipantGroupSchema], default: [
         { groupName: "Red", groupColor: "red" },
         { groupName: "No color", groupColor: "no-color" },
-      ] },
+      ]},
+      deadTimeSeconds: { type: Number },
+      livesLimit: { type: Number },
     }},
   },
   {

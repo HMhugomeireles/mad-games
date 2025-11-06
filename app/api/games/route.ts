@@ -74,3 +74,58 @@ export async function POST(req: Request) {
 }
 
 
+function getDateRange(filter: "today" | "week") {
+  const now = new Date();
+
+  if (filter === "today") {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }
+
+  if (filter === "week") {
+    const first = new Date(now);
+    const day = now.getDay(); // 0 = domingo
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // segunda-feira como início
+    first.setDate(diff);
+    first.setHours(0, 0, 0, 0);
+
+    const last = new Date(first);
+    last.setDate(first.getDate() + 6);
+    last.setHours(23, 59, 59, 999);
+
+    return { start: first, end: last };
+  }
+
+  throw new Error("Filtro inválido");
+}
+
+export async function GET(req: Request) {
+  try {
+    await dbConnect();
+
+    // Verifica se há query param ?filter=today|week (padrão: today)
+    const { searchParams } = new URL(req.url);
+    const filter = (searchParams.get("filter") as "today" | "week") || "today";
+    const { start, end } = getDateRange(filter);
+
+    const games = await Game.find({
+      status: "planned",
+      date: { $gte: start, $lte: end },
+    })
+      .sort({ date: 1 })
+      .lean();
+
+    return NextResponse.json({ success: true, count: games.length, data: games });
+  } catch (err: any) {
+    console.error("Erro ao buscar jogos:", err);
+    return NextResponse.json(
+      { success: false, message: err.message || "Erro interno" },
+      { status: 500 }
+    );
+  }
+}
