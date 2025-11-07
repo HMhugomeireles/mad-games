@@ -10,10 +10,17 @@ import GameSettingsForm from "./game-settings-form";
 
 export default function GameSettingsModalButton({
     gameId,
-    initialGroups,
+    initialSettings,
 }: {
     gameId: string;
-    initialGroups?: { id?: string; groupName: string; groupColor: string }[];
+    initialSettings?: {
+        groups?: { id?: string; groupName: string; groupColor: string }[];
+        maxplayers?: number | null;
+        deadWaitTimeSeconds?: number | null;
+        respawnTimeSeconds?: number | null;
+        respawnType?: "players-number" | "time" | "other" | null;
+        respawnMaxPlayers?: number | null;
+    };
 }) {
     const [open, setOpen] = React.useState(false);
 
@@ -32,7 +39,11 @@ export default function GameSettingsModalButton({
                 </DialogHeader>
 
 
-                <GameSettingsForm gameId={gameId} initialGroups={initialGroups} onSaved={() => setOpen(false)} />
+                <GameSettingsForm
+                    gameId={gameId}
+                    initialSettings={initialSettings ?? {}}
+                    onSaved={() => setOpen(false)}
+                />
 
 
                 <DialogFooter>

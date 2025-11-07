@@ -1,4 +1,3 @@
-// app/admin/player/create/page.tsx
 "use client";
 
 import * as React from "react";
@@ -19,10 +18,9 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
-// ------------------------------
-// Validation schema (client-side)
-// ------------------------------
+
 const Schema = z.object({
   name: z
     .string()
@@ -73,12 +71,12 @@ export default function CreatePlayerPage() {
         throw new Error(err?.error ? JSON.stringify(err.error) : res.statusText);
       }
 
-      // Sucesso
-      // Se preferir, troque por um toast de sua UI.
-      alert("Jogador criado com sucesso!");
-      router.push("/admin/player"); // ajuste o destino conforme sua listagem
+      toast.success("Definições guardadas", {
+        description: `${values.name}, Player created successfully.`,
+      });
+      router.refresh();
     } catch (e: any) {
-      alert(`Falha ao criar jogador: ${e.message ?? e}`);
+      toast.error("Falha ao guardar player", { description: e?.message || "Erro desconhecido" });
     }
   };
 

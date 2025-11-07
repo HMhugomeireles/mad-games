@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { dbConnect } from "@/lib/db/mongo";
 import Device, { DeviceDoc } from "@/lib/db/models/device";
-import { GAME_MODES } from "@/domain/game-modes";
 import { normalizeMac } from "@/lib/utils";
+
+const TYPE_OPTIONS = ["eletronic", "bracelet"] as const;
 
 const BodySchema = z.object({
   name: z.string().min(1).trim(),
@@ -14,7 +15,7 @@ const BodySchema = z.object({
     .transform((v) => (v ? v.toLowerCase().replace(/[^a-f0-9]/g, "") : v))
     .refine((v) => !v || /^[a-f0-9]{12}$/.test(v), { message: "MAC inválido" }),
   description: z.string().trim().optional(),
-  deviceGames: z.array(z.enum(GAME_MODES)).optional().default([]),
+  type: z.enum(TYPE_OPTIONS),
 });
 
 export async function GET() {
@@ -109,3 +110,4 @@ export async function PATCH(req: Request) {
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
 }
+

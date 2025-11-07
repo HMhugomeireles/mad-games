@@ -122,7 +122,7 @@ export default async function GameDetailsPage(
               <BarChart3 className="mr-2 h-4 w-4" /> Resultados
             </Link>
           </Button>
-          <GameSettingsModalButton gameId={game.id} initialGroups={groups} />
+          <GameSettingsModalButton gameId={game.id} initialSettings={game.gameSettings ?? {}} />
           <DeleteGameButton gameId={game.id} disabled={isFuture} />
         </div>
       </div>

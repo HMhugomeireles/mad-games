@@ -29,3 +29,45 @@ export async function UPDATE(_req: Request, ctx: { params: Promise<{ gameId: str
 
     return NextResponse.json({ ok: true }); 
 }
+
+
+type Ctx = { params: { id: string } };
+
+export async function GET(req: Request, ctx: Ctx) {
+  try {
+    await dbConnect();
+
+    const { id } = await ctx.params;
+
+    if (!id || typeof id !== "string") {
+      return NextResponse.json(
+        { success: false, message: "Game ID inválido" },
+        { status: 400 }
+      );
+    }
+
+    // Busca o game pelo UUID _id
+    const game = await Game.findById(id).lean();
+
+    if (!game) {
+      return NextResponse.json(
+        { success: false, message: "Game não encontrado" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: game,
+      },
+      { status: 200 }
+    );
+  } catch (err: any) {
+    console.error("GET /api/games/[id] error:", err);
+    return NextResponse.json(
+      { success: false, message: err?.message || "Erro interno" },
+      { status: 500 }
+    );
+  }
+}

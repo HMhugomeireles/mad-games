@@ -82,8 +82,11 @@ const GameSchema = new Schema(
         { groupName: "Red", groupColor: "red" },
         { groupName: "No color", groupColor: "no-color" },
       ]},
-      deadTimeSeconds: { type: Number },
-      livesLimit: { type: Number },
+      maxplayers: { type: Number },
+      deadWaitTimeSeconds: { type: Number },
+      respawnTimeSeconds: { type: Number },
+      respawnType: { type: String, enum: ["players-number", "time", "other"], default: "other" },
+      respawnMaxPlayers: { type: Number },
     }},
   },
   {
@@ -130,6 +133,11 @@ export type GameDoc = {
       groupColor?: string;
       createdAt: Date; updatedAt: Date;
     }>;
+    maxplayers?: number;
+    deadWaitTimeSeconds?: number;
+    respawnTimeSeconds?: number;
+    respawnType?: string;
+    respawnMaxPlayers?: number;
   }
   createdAt: Date; updatedAt: Date;
 };

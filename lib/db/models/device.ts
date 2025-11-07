@@ -10,6 +10,7 @@ const DeviceSchema = new Schema(
       trim: true,
       set: (v: string) => (v ? v.toLowerCase().replace(/[^a-f0-9]/g, "") : v),
       validate: { validator: (v: string) => !v || /^[a-f0-9]{12}$/.test(v), message: "MAC inválido" },
+      default: null,
     },
     description: { type: String, trim: true },
     type: { type: String, enum: ["eletronic", "bracelet"], default: "eletronic" },
@@ -18,6 +19,11 @@ const DeviceSchema = new Schema(
   {
     timestamps: true,
   }
+);
+
+DeviceSchema.index(
+  { mac: 1 },
+  { unique: true, partialFilterExpression: { mac: { $exists: true, $ne: null } } }
 );
 
 export type DeviceDoc = {
