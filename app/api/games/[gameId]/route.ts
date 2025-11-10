@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db/mongo";
-import Game from "@/lib/db/models/game";
+import Game, { GameDoc } from "@/lib/db/models/game";
 
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ gameId: string }> }) {
@@ -46,7 +46,7 @@ export async function GET(req: Request, ctx: Ctx) {
       );
     }
 
-    // Busca o game pelo UUID _id
+    
     const game = await Game.findById(id).lean();
 
     if (!game) {
@@ -59,7 +59,7 @@ export async function GET(req: Request, ctx: Ctx) {
     return NextResponse.json(
       {
         success: true,
-        data: game,
+        data: game.at(0) || null,
       },
       { status: 200 }
     );

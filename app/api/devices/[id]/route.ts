@@ -82,9 +82,7 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
   }
 }
 
-type Ctx = { params: { id: string } };
-
-export async function DELETE(req: Request, ctx: Ctx) {
+export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     await dbConnect();
 

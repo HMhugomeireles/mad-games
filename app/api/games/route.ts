@@ -4,6 +4,8 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { dbConnect } from "@/lib/db/mongo";
 import Game from "@/lib/db/models/game";
+import game from "@/lib/db/models/game";
+import { id } from "zod/v4/locales";
 
 const GAME_MODES = [
   "domination",
@@ -113,12 +115,19 @@ export async function GET(req: Request) {
     const filter = (searchParams.get("filter") as "today" | "week") || "today";
     const { start, end } = getDateRange(filter);
 
-    const games = await Game.find({
+    const games = (await Game.find({
       status: "planned",
       date: { $gte: start, $lte: end },
     })
       .sort({ date: 1 })
-      .lean();
+      .lean())
+      .map(game => ({
+        id: game._id,
+        name: game.name,
+        status: game.status,
+        type: game.type,
+        date: game.date ? game.date.toISOString() : null,
+      }));
 
     return NextResponse.json({ success: true, count: games.length, data: games });
   } catch (err: any) {

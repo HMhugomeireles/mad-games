@@ -78,10 +78,13 @@ const GameSchema = new Schema(
     gameDevices: { type: [GameDeviceSchema], default: [] },
     gameResults: { type: [GameResultSchema], default: [] },
     gameSettings: { type: {
-      groups: { type: [ParticipantGroupSchema], default: [
-        { groupName: "Red", groupColor: "red" },
-        { groupName: "No color", groupColor: "no-color" },
-      ]},
+      groups: { 
+        type: [ParticipantGroupSchema],
+        default: [
+          { groupName: "Red", groupColor: "red" },
+          { groupName: "No color", groupColor: "no-color" },
+        ]
+      },
       maxplayers: { type: Number },
       deadWaitTimeSeconds: { type: Number },
       respawnTimeSeconds: { type: Number },
