@@ -31,9 +31,7 @@ export async function UPDATE(_req: Request, ctx: { params: Promise<{ gameId: str
 }
 
 
-type Ctx = { params: { id: string } };
-
-export async function GET(req: Request, ctx: Ctx) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     await dbConnect();
 
