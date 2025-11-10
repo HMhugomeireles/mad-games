@@ -31,13 +31,13 @@ export async function UPDATE(_req: Request, ctx: { params: Promise<{ gameId: str
 }
 
 
-export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ gameId: string }> }) {
   try {
     await dbConnect();
 
-    const { id } = await ctx.params;
+    const { gameId } = await ctx.params;
 
-    if (!id || typeof id !== "string") {
+    if (!gameId || typeof gameId !== "string") {
       return NextResponse.json(
         { success: false, message: "Game ID inválido" },
         { status: 400 }
@@ -45,7 +45,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     }
 
     
-    const game = await Game.findById(id).lean();
+    const game = await Game.findById(gameId).lean();
 
     if (!game) {
       return NextResponse.json(
