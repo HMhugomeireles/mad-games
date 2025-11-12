@@ -2,13 +2,17 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage
+} from "@/components/ui/form";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { MultiSelect } from "@/components/multi-selector";
 
 type Participant = { id: string; name: string };
 
@@ -26,19 +30,20 @@ export function AssignDeviceForm({
   const router = useRouter();
   const [devices, setDevices] = React.useState<{ id: string; name: string }[]>([]);
 
+  // ✅ agora usamos *vários* devices
   const Schema = z.object({
-    deviceId: z.string().min(1, "Seleciona um device"),
-    assignedPlayerId: z.string().min(1, "Seleciona um jogador"),
+    deviceIds: z.array(z.string()).min(1, "Seleciona pelo menos um device"),
+    assignedPlayerId: z.string().optional(),
     deviceStatus: z.enum(DEVICE_STATUS),
-    deviceLocation: z.string(),
+    deviceLocation: z.string().default(""),
   });
   type Values = z.infer<typeof Schema>;
 
   const form = useForm<Values>({
-    resolver: zodResolver(Schema),
+    resolver: zodResolver(Schema) as unknown as Resolver<Values, any, any>,
     defaultValues: {
-      deviceId: "",
-      assignedPlayerId: "",
+      deviceIds: [],
+      assignedPlayerId: undefined,
       deviceStatus: "offline",
       deviceLocation: "",
     },
@@ -49,7 +54,10 @@ export function AssignDeviceForm({
       try {
         const res = await fetch("/api/devices", { cache: "no-store" });
         const list = await res.json();
-        setDevices((list || []).map((d: any) => ({ id: d.id || d._id, name: d.name || d.id })));
+        setDevices((list || []).map((d: any) => ({
+          id: d.id || d._id,
+          name: d.name || d.id
+        })));
       } catch {
         /* no-op */
       }
@@ -61,14 +69,20 @@ export function AssignDeviceForm({
     [devices, blockedDeviceIds]
   );
 
+  // items para o MultiSelect
+  const deviceItems = React.useMemo(
+    () => availableDevices.map((d) => ({ value: String(d.id), label: d.name })),
+    [availableDevices]
+  );
+
   const onSubmit = async (v: Values) => {
     try {
-      // se não estiver online, não envia localização
       const payload = {
-        deviceId: v.deviceId,
+        deviceIds: v.deviceIds, // 👈 agora enviamos um array
         assignedPlayerId: v.assignedPlayerId,
         deviceStatus: v.deviceStatus,
-        deviceLocation: v.deviceStatus === "online" && v.deviceLocation ? v.deviceLocation : undefined,
+        deviceLocation:
+          v.deviceStatus === "online" && v.deviceLocation ? v.deviceLocation : undefined,
       };
 
       const res = await fetch(`/api/games/${gameId}/assign-device`, {
@@ -79,17 +93,18 @@ export function AssignDeviceForm({
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error ? JSON.stringify(json.error) : res.statusText);
 
-      toast.success("Device atribuído");
+      toast.success("Devices atribuídos");
       form.reset({
-        deviceId: "",
-        assignedPlayerId: "",
+        deviceIds: [],
+        assignedPlayerId: undefined,
         deviceStatus: "offline",
         deviceLocation: "",
       });
+      form.setValue("assignedPlayerId", undefined, { shouldDirty: true });
       router.refresh();
     } catch (e: any) {
       const msg = e?.message || "Erro desconhecido";
-      toast.error("Falha ao atribuir device", { description: msg });
+      toast.error("Falha ao atribuir devices", { description: msg });
     }
   };
 
@@ -99,29 +114,24 @@ export function AssignDeviceForm({
     <Form {...form}>
       {/* ≥900px: 2 colunas; <900px: 1 coluna */}
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 min-[900px]:grid-cols-2">
-        {/* Device (col 1) */}
+        {/* Devices (col 1) — agora MultiSelect */}
         <FormField
           control={form.control}
-          name="deviceId"
+          name="deviceIds"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Device</FormLabel>
-              <Select value={field.value ?? undefined} onValueChange={field.onChange}>
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleciona o device" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {availableDevices.length === 0 ? (
-                    <SelectItem disabled value="no-devices">Sem devices disponíveis</SelectItem>
-                  ) : (
-                    availableDevices.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <FormLabel>Devices</FormLabel>
+              <FormControl>
+                <MultiSelect
+                  items={deviceItems}
+                  value={field.value ?? []}
+                  onChange={field.onChange}
+                  placeholder={
+                    deviceItems.length ? "Seleciona um ou mais devices..." : "Sem devices disponíveis"
+                  }
+                  maxSelected={8} // opcional: limita a quantidade
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -134,16 +144,27 @@ export function AssignDeviceForm({
           render={({ field }) => (
             <FormItem className="min-[900px]:col-span-1">
               <FormLabel>Jogador</FormLabel>
-              <Select value={field.value ?? undefined} onValueChange={field.onChange}>
+              <Select
+                // ✅ Usa o valor controlado corretamente
+                value={field.value || ""}
+                onValueChange={(val) => field.onChange(val || undefined)}
+              >
                 <FormControl>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Seleciona o jogador" /></SelectTrigger>
+                  <SelectTrigger className="w-full">
+                    {/* ✅ placeholder volta ao default se field.value for vazio */}
+                    <SelectValue placeholder="Seleciona o jogador" />
+                  </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   {participants.length === 0 ? (
-                    <SelectItem disabled value="no-players">Sem jogadores</SelectItem>
+                    <SelectItem disabled value="no-players">
+                      Sem jogadores
+                    </SelectItem>
                   ) : (
                     participants.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
                     ))
                   )}
                 </SelectContent>
@@ -156,7 +177,7 @@ export function AssignDeviceForm({
         {/* Botão — linha inteira, alinhado à direita */}
         <div className="flex justify-end min-[900px]:col-span-2 pt-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "A atribuir…" : "Atribuir"}
+            {form.formState.isSubmitting ? "Adding…" : "Assign"}
           </Button>
         </div>
       </form>
