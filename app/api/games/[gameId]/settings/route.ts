@@ -1,37 +1,15 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { v4 as uuidv4 } from "uuid";
 import { dbConnect } from "@/lib/db/mongo";
 import Game from "@//lib/db/models/game";
+import { v4 as uuidv4 } from "uuid";
 
-const COLOR_OPTIONS = ["red","blue","green","yellow","purple","orange","no-color"] as const;
+const COLOR_OPTIONS = ["red", "blue", "green", "yellow", "purple", "orange", "no-color"] as const;
 const RESPAWN_TYPES = ["players-number", "time", "other"] as const;
 
 
-const GroupSchema = z.object({
-  id: z.string().optional(),
-  groupName: z.string().min(1).trim(),
-  groupColor:  z.enum(COLOR_OPTIONS).or(z.string().min(1).trim()),
-});
 
-const numberOpt = z
-  .union([z.string(), z.number()])
-  .optional()
-  .transform((v) => (v === undefined || v === null || v === "" ? undefined : Number(v)))
-  .refine((v) => v === undefined || (!Number.isNaN(v) && v >= 0), "Valor inválido");
-
-const BodySchema = z.object({
- groups: z.array(GroupSchema).default([
-    { groupName: "Group 1", groupColor: "red" },
-    { groupName: "Group 2", groupColor: "no-color" },
-  ]),
-  maxplayers: numberOpt,
-  deadWaitTimeSeconds: numberOpt,
-  respawnTimeSeconds: numberOpt,
-  respawnType: z.enum(RESPAWN_TYPES).optional(),
-  respawnMaxPlayers: numberOpt,
-});
 
 export async function GET(_req: Request, ctx: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await ctx.params; // Next 15
@@ -41,6 +19,32 @@ export async function GET(_req: Request, ctx: { params: Promise<{ gameId: string
   const groups = (game as any).gameSettings?.groups || [];
   return NextResponse.json({ groups });
 }
+
+
+const GroupSchema = z.object({
+  groupId: z.string().optional(),
+  groupName: z.string().min(1).trim(),
+  groupColor: z.enum(COLOR_OPTIONS).or(z.string().min(1).trim()),
+  respawnDevice: z.object({
+    id: z.string().optional(),
+    name: z.string().trim().optional(),
+    macAddress: z.string().trim().optional(),
+  }).optional(),
+  baseDevice: z.object({
+    id: z.string().optional(),
+    name: z.string().trim().optional(),
+    macAddress: z.string().trim().optional(),
+  }).optional(),
+});
+
+const BodySchema = z.object({
+  groups: z.array(GroupSchema).optional(),
+  maxplayers: z.string().or(z.number()).optional(),
+  deadWaitTimeSeconds: z.string().or(z.number()).optional(),
+  respawnTimeSeconds: z.string().or(z.number()).optional(),
+  respawnType: z.enum(RESPAWN_TYPES).optional(),
+  respawnMaxPlayers: z.string().or(z.number()).optional(),
+});
 
 export async function PUT(req: Request, ctx: { params: Promise<{ gameId: string }> }) {
   try {
@@ -55,12 +59,15 @@ export async function PUT(req: Request, ctx: { params: Promise<{ gameId: string 
       );
     }
 
-    const { gameId } = await ctx.params; 
+    const { gameId } = await ctx.params;
 
     // Monta objeto gameSettings (apenas campos presentes)
     const data = parsed.data;
     const gameSettings: Record<string, any> = {};
-    if (data.groups) gameSettings.groups = data.groups;
+    if (data.groups) gameSettings.groups = data.groups.map((group) => ({
+      groupName: group.groupName,
+      groupColor: group.groupColor,
+    }));
     if (data.maxplayers !== undefined) gameSettings.maxplayers = data.maxplayers;
     if (data.deadWaitTimeSeconds !== undefined)
       gameSettings.deadWaitTimeSeconds = data.deadWaitTimeSeconds;
@@ -70,11 +77,21 @@ export async function PUT(req: Request, ctx: { params: Promise<{ gameId: string 
     if (data.respawnMaxPlayers !== undefined)
       gameSettings.respawnMaxPlayers = data.respawnMaxPlayers;
 
+    const groupNodes = data.groups?.map((group: any) => ({
+      id: uuidv4(),
+      groupId: group.groupId,
+      groupName: group.groupName,
+      groupColor: group.groupColor,
+      respawnDevice: group.respawnDevice,
+      baseDevice: group.baseDevice,
+    })) || []
+
     const updated = await Game.findByIdAndUpdate(
       gameId,
       {
         $set: {
           gameSettings,
+          groupsNodes: groupNodes,
           updatedAt: new Date(),
         },
       },

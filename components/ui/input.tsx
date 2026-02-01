@@ -18,4 +18,20 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   )
 }
 
-export { Input }
+function TacticalInput({ type, placeholder, icon, ...props }: { type: string; placeholder: string; icon: React.ReactNode }) {
+  return (
+    <div className="relative group">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-bullet-muted group-focus-within:text-bullet-accent transition-colors">
+        {icon}
+      </div>
+      <input 
+      type={type} 
+      placeholder={placeholder} 
+      className="w-full bg-bullet-panel border-l-2 border-transparent focus:border-bullet-accent text-bullet-text placeholder-bullet-muted py-3 pl-10 pr-4 outline-none transition-all duration-300 shadow-inner font-mono text-sm"
+      {...props}
+    />
+  </div>
+);
+}
+
+export { Input, TacticalInput }

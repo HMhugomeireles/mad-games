@@ -18,11 +18,23 @@ const FieldMapSchema = new Schema(
     description: { type: String, default: "" },
     location: { type: String, default: "" },
     socialLinks: { type: [SocialLinkSchema], default: [] },
-    createdBy: { type: String, ref: "User" },
   },
   {
     timestamps: true,
   }
 );
+
+export type FieldMapDoc = {
+  _id: string;
+  fieldMap: string;
+  isActive: boolean;
+  type: "cqb" | "misto" | "mato" | "other";
+  description: string;
+  location: string;
+  socialLinks: { platform: string; url: string }[];
+  createdBy: Date;
+  updatedAt: Date;
+  createdAt: Date;
+}
 
 export default mongoose.models.FieldMap || mongoose.model("FieldMap", FieldMapSchema);

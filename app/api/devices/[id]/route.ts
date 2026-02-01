@@ -4,12 +4,22 @@ import { dbConnect } from "@/lib/db/mongo";
 import Device from "@/lib/db/models/device";
 
 const PutSchema = z.object({
-  name: z.string().trim().min(1),
-  mac: z.string().trim().optional(),
+  name: z.string().trim().min(1, "Nome é obrigatório"),
+  mac: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ?? "").trim())
+    .refine(
+      (v) => v === "" || /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(v) || /^[0-9a-f]{12}$/i.test(v),
+      "MAC inválido. Use 00:11:22:33:44:55 ou 001122334455"
+    ),
   description: z.string().trim().optional(),
-  type: z.enum(["eletronic", "bracelet"]),
-  status: z.enum(["online", "offline"]),
-}).strict();
+  variant: z.enum(["electronic", "bracelet"]).default("electronic"),
+  status: z.enum(["online", "offline"]).default("offline"),
+  groupType: z.enum(["individual", "team", "game", "settings", "respawn"]).default("individual"),
+  group: z.enum(["A00", "B00", "C00", "D00", "E00"]).optional(),
+});
 
 
 export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -39,9 +49,11 @@ export async function PUT(req: Request, ctx: { params: Promise<{ id: string }> }
     const update: any = {
       name: parsed.data.name.trim(),
       description: parsed.data.description?.trim() ?? "",
-      type: parsed.data.type,
+      variant: parsed.data.variant,
       status: parsed.data.status,
       updatedAt: new Date(),
+      groupType: parsed.data.groupType,
+      group: parsed.data.group ?? null,
     };
 
     if (mac === null) {

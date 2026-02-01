@@ -1,13 +1,36 @@
 export const runtime = "nodejs";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { dbConnect } from "@/lib/db/mongo";
-import Device, { DeviceDoc } from "@/lib/db/models/device";
+import Device, { DeviceDoc, STATUS_OPTIONS, VARIANTS_OPTIONS } from "@/lib/db/models/device";
 import { normalizeMac } from "@/lib/utils";
+import { isValidObjectId } from "mongoose";
 
-const TYPE_OPTIONS = ["eletronic", "bracelet"] as const;
 
-const BodySchema = z.object({
+export async function GET(req: NextRequest) {
+  try {
+    const searchParams = req.nextUrl.searchParams;
+    const filter = searchParams.get("type");
+
+    await dbConnect();
+
+    const query = filter ? { groupType: filter } : {};
+
+    const rows = await Device.find(query)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return NextResponse.json(rows);
+  } catch (error) {
+    console.error("Erro ao buscar devices:", error);
+    return NextResponse.json(
+      { message: "Erro ao buscar dispositivos." },
+      { status: 500 }
+    )
+  }
+}
+
+const PostSchema = z.object({
   name: z.string().min(1).trim(),
   mac: z
     .string()
@@ -15,99 +38,168 @@ const BodySchema = z.object({
     .transform((v) => (v ? v.toLowerCase().replace(/[^a-f0-9]/g, "") : v))
     .refine((v) => !v || /^[a-f0-9]{12}$/.test(v), { message: "MAC inválido" }),
   description: z.string().trim().optional(),
-  type: z.enum(TYPE_OPTIONS),
+  variant: z.enum(VARIANTS_OPTIONS).default("electronic"),
 });
 
-export async function GET() {
-  await dbConnect();
-  const rows = await Device.find().sort({ createdAt: -1 }).lean();
-  return NextResponse.json(rows);
-}
-
 export async function POST(req: Request) {
-  await dbConnect();
-  const json = await req.json();
-  const parsed = BodySchema.safeParse(json);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-
   try {
-    const created = await Device.create(parsed.data);
-    return NextResponse.json(created, { status: 201 });
-  } catch (err: any) {
-    if (err?.code === 11000) {
-      return NextResponse.json({ error: "Duplicado (índice único)", keyValue: err.keyValue }, { status: 409 });
+    await dbConnect();
+
+    const json = await req.json().catch(() => null);
+
+    if (!json) {
+      return NextResponse.json(
+        { success: false, error: "Body invalid" },
+        { status: 400 }
+      );
     }
-    console.error(err);
-    return NextResponse.json({ error: "internal_error" }, { status: 500 });
+
+    const parsed = PostSchema.safeParse(json);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Data validation error",
+          details: parsed.error.flatten().fieldErrors
+        },
+        { status: 400 }
+      );
+    }
+
+    const created = await Device.create(parsed.data);
+
+    return NextResponse.json(
+      { success: true, data: created },
+      { status: 201 }
+    );
+
+  } catch (err: any) {
+    if (err.code === 11000) {
+      // Tenta extrair o nome do campo duplicado (ex: "macAddress")
+      const field = Object.keys(err.keyPattern)[0] || "campo";
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `This mac '${field}' already exists in the system.`,
+          field: field
+        },
+        { status: 409 } // Conflict
+      );
+    }
+
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map((val: any) => val.message);
+      return NextResponse.json(
+        { success: false, error: "Validation error", details: messages },
+        { status: 400 }
+      );
+    }
+
+
+    console.error("POST /api/devices error:", err);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "PATCH, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key",
-};
-
-const Body = z.object({
-  mac: z.string(),
-  status: z.enum(["online", "offline"]),
+const PatchSchema = z.object({
+  id: z.string().min(1, "ID é obrigatório"),
+  mac: z.string().optional(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  variant: z.string().optional(),
+  status: z.enum(STATUS_OPTIONS).optional(),
 });
-
-let macNorm: string | undefined;
 
 export async function PATCH(req: Request) {
   try {
     await dbConnect();
 
-    const json = await req.json().catch(() => ({}));
-    const parsed = Body.safeParse(json);
+    const json = await req.json().catch(() => null);
+    if (!json) {
+      return NextResponse.json({ error: "Body inválido ou vazio" }, { status: 400 });
+    }
+
+    const parsed = PatchSchema.safeParse(json);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400, headers: CORS });
-    }
-
-    const { mac, status } = parsed.data;
-    const raw = mac ?? status;
-    if (!raw) {
-      return NextResponse.json({ error: "Campo 'mac' é obrigatório" }, { status: 400, headers: CORS });
-    }
-
-    const macNorm = normalizeMac(raw);
-    if (!/^[a-f0-9]{12}$/.test(macNorm)) {
-      return NextResponse.json({ error: "MAC inválido: use 12 hex (com ou sem separadores)" }, { status: 400, headers: CORS });
-    }
-
-    const doc = await Device.findOneAndUpdate(
-      { mac: macNorm },
-      { $set: { status: status } },
-      { new: true }
-    ).lean();
-
-    if (!doc) {
-      return Response.json(
-        { error: "Device não encontrado para este MAC." },
-        { status: 404, headers: CORS }
+      return NextResponse.json(
+        { error: "Dados inválidos", details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
       );
     }
 
-    return Response.json(
-      { deviceId: String((doc as any)._id ?? (doc as any).id) },
-      { status: 200, headers: CORS }
-    );
-  } catch (e: any) {
-    // conflito raro de índice único: tenta ler novamente
-    console.error("PATCH /api/devices erro:", e);
-    if (e?.code === 11000) {
-      const existing = await Device.findOne({ mac: macNorm }).lean();
-      if (existing) {
-        const id = String((existing as any).id ?? (existing as any)._id);
-        return NextResponse.json({ id }, { status: 200, headers: CORS });
-      }
+    const { id, mac, name, description, variant, status } = parsed.data;
+
+    if (!isValidObjectId(id)) {
+      return NextResponse.json({ error: "Formato de ID inválido" }, { status: 400 });
     }
-    return NextResponse.json({ error: e?.message || "Erro interno" }, { status: 500, headers: CORS });
+
+    const updateFields: Record<string, any> = {};
+
+    if (name !== undefined) updateFields.name = name;
+    if (description !== undefined) updateFields.description = description;
+    if (variant !== undefined) updateFields.variant = variant;
+    if (status !== undefined) updateFields.status = status;
+
+    if (mac) {
+      const macNorm = normalizeMac(mac);
+      if (macNorm.length !== 12) {
+        return NextResponse.json({ error: "MAC inválido (deve ter 12 hex)" }, { status: 400 });
+      }
+      updateFields.mac = macNorm;
+    }
+
+    if (Object.keys(updateFields).length === 0) {
+      return NextResponse.json({ message: "Nenhum dado novo enviado para atualizar." }, { status: 400 });
+    }
+
+    // 4. Executar Update por ID
+    const updatedDevice = await Device.findByIdAndUpdate(
+      id,                  // Busca pelo _id
+      { $set: updateFields },
+      { new: true, runValidators: true } // Retorna o novo doc e valida enum/tipos
+    ).lean();
+
+    if (!updatedDevice) {
+      return NextResponse.json(
+        { error: "Device não encontrado com esse ID" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: true, device: updatedDevice },
+      { status: 200 }
+    );
+
+  } catch (e: any) {
+    console.error("PATCH /api/devices error:", e);
+
+    // Erro de duplicidade (ex: tentar mudar o MAC para um que já existe noutro ID)
+    if (e.code === 11000) {
+      return NextResponse.json(
+        { error: "Conflito: O valor do campo 'mac' (ou outro único) já está em uso por outro dispositivo." },
+        { status: 409 }
+      );
+    }
+
+    // Erro de Cast (ID mal formado) caso não tenhamos usado isValidObjectId em cima
+    if (e.name === 'CastError') {
+      return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+    }
+
+    return NextResponse.json(
+      { error: "Erro interno do servidor", details: e.message },
+      { status: 500 }
+    );
   }
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS });
+  return new NextResponse(null, { status: 204 });
 }
 

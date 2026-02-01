@@ -2,117 +2,191 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { dbConnect } from "@/lib/db/mongo";
-import Game from "@/lib/db/models/game";
+import Game, { GameDoc } from "@/lib/db/models/game";
+import Player from "@/lib/db/models/player";
+import { isValidObjectId } from "mongoose";
 
 const BodySchema = z.object({ 
-  playerId: z.string().min(1),
-  groupId: z.string().optional(),
-  rfid: z.string().optional()
+  playerId: z.string().min(1)
 });
 
 export async function POST(
   req: Request,
-   { params }: { params: Promise<{ gameId: string }> }
+  { params }: { params: Promise<{ gameId: string }> }
 ) {
-  const { gameId } = await params;
-  await dbConnect();
-  const json = await req.json();
-  console.log("[register-player] raw body:", JSON.stringify(json, null, 2));
+  try {
+    const { gameId } = await params;
+    await dbConnect();
 
-  const parsed = BodySchema.safeParse(json);
-  if (!parsed.success) {
-    console.error("[register-player] validation error:", parsed.error.flatten());
-    return NextResponse.json({ error: parsed.error.flatten(), received: json }, { status: 400 });
-  }
-  const body = parsed.data;
-
-  console.log("Registering player", body.playerId, "to game", gameId, "with groupId", body.groupId, "and rfid", body.rfid);
-
-  const game = await Game.findById(gameId);
-  if (!game) return NextResponse.json({ error: "game not found" }, { status: 404 });
-
-  const exists = game.registerPlayers.some((p: any) => String(p.playerId) === body.playerId);
-  if (exists) return NextResponse.json({ error: "player already registered" }, { status: 409 });
-
-  const group = body.groupId
-  ? (game.gameSettings?.groups || []).find((g: any) => String(g.id) === String(body.groupId))
-  : undefined;
-
-  game.registerPlayers.push({ 
-    playerId: body.playerId, 
-    rfid: body.rfid, 
-    groupId: body.groupId,
-    ...(group ? { group } : {})
-  });
-  await game.save();
-  return NextResponse.json({ ok: true });
-}
-
-export async function DELETE(req: Request, ctx: { params: Promise<{ gameId: string }> }) {
-  const { gameId } = await ctx.params;
-  await dbConnect();
-
-  const url = new URL(req.url);
-  const playerId = url.searchParams.get("playerId");
-  if (!playerId) {
-    return NextResponse.json({ error: "playerId is required" }, { status: 400 });
-  }
-
-  const game = await Game.findById(gameId);
-  if (!game) return NextResponse.json({ error: "game not found" }, { status: 404 });
-
-  // Remove o registo do jogador
-  game.registerPlayers = game.registerPlayers.filter(
-    (p: any) => String(p.playerId) !== playerId
-  );
-
-  // (Opcional) Desatribuir devices que estavam ligados a este jogador
-  game.gameDevices.forEach((d: any) => {
-    if (String(d.assignedPlayerId) === playerId) d.assignedPlayerId = undefined;
-  });
-
-  await game.save();
-  return NextResponse.json({ ok: true });
-}
-
-
-const PatchSchema = z.object({
-  playerId: z.string().min(1),
-  groupId: z.string().optional(),   // undefined => limpar grupo
-  rfid: z.string().optional(),      // "" => limpar RFID
-});
-
-export async function PATCH(req: Request, ctx: { params: Promise<{ gameId: string }> }) {
-  const { gameId } = await ctx.params;
-  await dbConnect();
-
-  const body = PatchSchema.parse(await req.json());
-  const game = await Game.findById(gameId);
-  if (!game) return NextResponse.json({ error: "game not found" }, { status: 404 });
-
-  const idx = game.registerPlayers.findIndex((p: any) => String(p.playerId) === body.playerId);
-  if (idx < 0) return NextResponse.json({ error: "player not registered" }, { status: 404 });
-
-  // RFID
-  if ("rfid" in body) {
-    game.registerPlayers[idx].rfid = body.rfid ? String(body.rfid) : undefined;
-  }
-
-  // Grupo (snapshot + opcional groupId, se existir no schema)
-  if ("groupId" in body) {
-    if (!body.groupId) {
-      game.registerPlayers[idx].group = undefined;
-      // @ts-ignore (se tiveres groupId no schema, isto grava; caso não, é ignorado em strict mode)
-      game.registerPlayers[idx].groupId = undefined;
-    } else {
-      const g = (game.gameSettings?.groups as any[])?.find((gg: any) => String(gg.id) === String(body.groupId));
-      if (!g) return NextResponse.json({ error: "group not found" }, { status: 400 });
-      game.registerPlayers[idx].group = g;
-      // @ts-ignore
-      game.registerPlayers[idx].groupId = body.groupId;
+    // 1. Parsing seguro do Body
+    const json = await req.json().catch(() => null);
+    if (!json) {
+      return NextResponse.json({ error: "Invalid JSON or empty body" }, { status: 400 });
     }
-  }
 
-  await game.save();
-  return NextResponse.json({ ok: true });
+    // 2. Validação Zod
+    const parsed = BodySchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const { playerId } = parsed.data;
+
+    const player = await Player.findById(playerId).select("name").lean() as { _id: unknown; name: string } | null;
+    
+    if (!player) {
+      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+    }
+
+    const updateResult = await Game.updateOne(
+      { 
+        _id: gameId, 
+        "assignedPlayers.playerId": { $ne: playerId }
+      },
+      {
+        $push: {
+          assignedPlayers: {
+            playerId: String(player._id),
+            playerName: player.name,
+            isPresent: false
+          }
+        }
+      }
+    );
+
+
+    if (updateResult.modifiedCount > 0) {
+      return NextResponse.json({ ok: true, message: "Player registered" }, { status: 200 });
+    }
+
+    const gameExists = await Game.exists({ _id: gameId });
+
+    if (!gameExists) {
+      return NextResponse.json({ error: "Game not found" }, { status: 404 });
+    } else {
+      return NextResponse.json({ error: "Player already registered" }, { status: 409 });
+    }
+
+  } catch (error: any) {
+    console.error("[register-player] Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: Request, 
+  ctx: { params: Promise<{ gameId: string }> }
+) {
+  try {
+    const { gameId } = await ctx.params;
+
+    const url = new URL(req.url);
+    const playerId = url.searchParams.get("playerId");
+
+    if (!playerId) {
+      return NextResponse.json(
+        { error: "Need pass playerId." }, 
+        { status: 400 }
+      );
+    }
+
+    const isGameIdValid = await Game.exists({ _id: gameId });
+    if (!isGameIdValid) {
+      return NextResponse.json(
+        { error: "Game not found." }, 
+        { status: 404 }
+      );
+    }
+
+    await dbConnect();
+
+    const result = await Game.updateOne(
+      { _id: gameId },
+      { $pull: { assignedPlayers: { playerId: playerId } } }
+    );
+
+    // 5. Verificar o resultado da operação
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: "Something goes wrong." }, { status: 404 });
+    }
+
+    return NextResponse.json({ 
+      ok: true, 
+      message: "Player removed successfully." 
+    }, { status: 200 });
+
+  } catch (error) {
+    console.error("Error removing player:", error);
+    return NextResponse.json(
+      { error: "Erro interno do servidor." }, 
+      { status: 500 }
+    );
+  }
+}
+
+
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ gameId: string }> }
+) {
+  try {
+    const { gameId } = await params;
+    await dbConnect();
+
+    // 1. Parsing seguro do Body
+    const json = await req.json().catch(() => null);
+    if (!json) {
+      return NextResponse.json({ error: "Invalid JSON or empty body" }, { status: 400 });
+    }
+
+    const parsed = BodySchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const { playerId } = parsed.data;
+
+    const player = await Player.findById(playerId).lean();
+    const gameExists = await Game.exists({ _id: gameId });
+
+    if (!gameExists) {
+      return NextResponse.json({ error: "Game not found" }, { status: 404 });
+    }
+    
+    if (!player) {
+      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+    }
+
+    const game = await Game.findOne(
+      { _id: gameId, "assignedPlayers.playerId": playerId }
+    ).lean() as GameDoc | null;
+
+    if (!game) {
+      return NextResponse.json({ error: "Player not assigned to this game" }, { status: 404 });
+    }
+
+    const assignedPlayer = game.assignedPlayers.find(ap => ap.playerId === playerId);
+    const togglePlayerPresent = !assignedPlayer?.isPresent;
+
+    const updateResult = await Game.updateOne(
+      { 
+        _id: gameId, 
+        "assignedPlayers.playerId": playerId
+      },
+      {
+        $set: {
+          "assignedPlayers.$.isPresent": togglePlayerPresent
+        }
+      }
+    );
+
+
+    if (updateResult.modifiedCount > 0) {
+      return NextResponse.json({ ok: true, message: "Player registered" }, { status: 200 });
+    }
+
+    return NextResponse.json({ error: "No changes made." }, { status: 200 });
+
+  } catch (error: any) {
+    console.error("[updated-player] Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
 }

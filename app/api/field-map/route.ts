@@ -20,7 +20,10 @@ const BodySchema = z.object({
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const filter = (searchParams.get("type") as string) || null;
+
   await dbConnect();
   const list = await FieldMap.find().sort({ createdAt: -1 }).lean();
   return NextResponse.json(list);

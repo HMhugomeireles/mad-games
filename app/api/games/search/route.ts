@@ -5,9 +5,6 @@ import { v4 as uuidv4 } from "uuid";
 import { dbConnect } from "@/lib/db/mongo";
 import Game from "@/lib/db/models/game";
 
-
-
-
 const BodySchema = z.object({
     deviceId: z.string().min(1),
 });

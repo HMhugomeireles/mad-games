@@ -3,17 +3,32 @@ import { v4 as uuidv4 } from "uuid";
 
 const PlayerSchema = new Schema(
   {
-    _id: { type: String, default: uuidv4, index: true },
+    _id: { type: String, default: uuidv4 },
     name: { type: String, required: true, trim: true },
     apd: { type: String, trim: true, uppercase: true, unique: true, sparse: true },
-    apdValidateDate: { type: Date },                      // use Date, não String
-    team: { type: String, trim: true },                   // mude para { ref: "Team" } se tiver modelo
+    apdValidateDate: { type: Date },
+    team: { type: String, trim: true },
+    contactInfo: { type: String },
+    email: { type: String, trim: true, lowercase: true },
+    avatarUrl: { type: String, trim: true },
   },
   {
     timestamps: true,
   }
 );
 
+export type PlayerDoc = {
+  _id: string;
+  name: string;
+  apd?: string;
+  apdValidateDate?: Date;
+  team?: string;
+  contactInfo?: string;
+  email?: string;
+  avatarUrl?: string;
+  createdAt: Date; 
+  updatedAt: Date;
+}
 
 // Virtual: APD válido?
 PlayerSchema.virtual("apdIsValid").get(function () {

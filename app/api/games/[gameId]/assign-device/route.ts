@@ -3,92 +3,129 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { dbConnect } from "@/lib/db/mongo";
 import Game from "@/lib/db/models/game";
+import Device from "@/lib/db/models/device";
+import { isValidObjectId } from "mongoose";
+import { group } from "console";
 
-const Body = z.object({
-  deviceIds: z.array(z.string()).min(1, "Seleciona pelo menos um device"),
-  assignedPlayerId: z.string().optional(),
-  deviceStatus: z.enum(["online", "offline", "in_use"]).default("offline"),
-  deviceLocation: z.string().optional().default(""),
+
+
+const BodySchema = z.object({
+  deviceId: z.string().min(1)
 });
 
-
-export async function POST(req: Request,   { params }: { params: Promise<{ gameId: string }> }) {
-  const { gameId } = await params;
-
-  // Parse seguro do body
-  let parsed: ReturnType<typeof Body.safeParse>;
+export async function POST(req: Request, { params }: { params: Promise<{ gameId: string }> }) {
   try {
-    parsed = await Body.safeParse(await req.json());
-  } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
-  }
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Body inválido", details: parsed.error.flatten() },
-      { status: 400 }
-    );
-  }
-  const { deviceIds, assignedPlayerId, deviceStatus, deviceLocation } = parsed.data;
+    const { gameId } = await params;
 
-  await dbConnect();
+    // 1. Parse do Body e Validação Zod num passo único
+    const json = await req.json().catch(() => null);
+    const parsed = BodySchema.safeParse(json);
 
-  const game = await Game.findById(gameId);
-  if (!game) return NextResponse.json({ error: "game not found" }, { status: 404 });
-
-  // Se foi enviado assignedPlayerId, valida registro no jogo
-  if (assignedPlayerId) {
-    const registered = game.registerPlayers?.some(
-      (p: any) => String(p.playerId) === String(assignedPlayerId)
-    );
-    if (!registered) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "player not registered in this game" },
+        { error: "Dados inválidos", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
-  }
 
-  // Garante arrays existentes
-  if (!Array.isArray(game.gameDevices)) game.gameDevices = [];
+    const { deviceId } = parsed.data;
 
-  // Upsert para cada deviceId
-  const location =
-    deviceStatus === "online" && deviceLocation ? deviceLocation : undefined;
+    await dbConnect();
+    const game = await Game.findById(gameId);
 
-  let created = 0;
-  let updated = 0;
+    if (!game) {
+      return NextResponse.json({ error: "Game not found" }, { status: 404 });
+    }
 
-  for (const deviceId of deviceIds) {
-    const idx = game.gameDevices.findIndex(
-      (d: any) => String(d.deviceId) === String(deviceId)
+    const device = await Device.findById(deviceId).lean();
+
+    if (!device || Array.isArray(device)) {
+      return NextResponse.json({ error: "Device not found" }, { status: 404 });
+    }
+
+    const updateResult = await Game.updateOne(
+      {
+        _id: gameId,
+        "assignedDevices.deviceId": { $ne: deviceId }
+      },
+      {
+        $push: {
+          assignedDevices: {
+            deviceId: device._id,
+            deviceName: device.name,
+            group: device.group || null,
+            variant: device.variant
+          }
+        }
+      }
     );
 
-    if (idx >= 0) {
-      // update
-      game.gameDevices[idx].assignedPlayerId = assignedPlayerId;
-      game.gameDevices[idx].deviceStatus = deviceStatus;
-      game.gameDevices[idx].deviceLocation = location;
-      updated++;
-    } else {
-      // create
-      game.gameDevices.push({
-        deviceId,
-        assignedPlayerId,
-        deviceStatus,
-        deviceLocation: location,
-        havePlayerReturnDevice: false,
-      });
-      created++;
+
+    if (updateResult.modifiedCount > 0) {
+      return NextResponse.json({ ok: true, message: "Device registered" }, { status: 200 });
     }
+
+    const gameExists = await Game.exists({ _id: gameId });
+
+    if (!gameExists) {
+      return NextResponse.json({ error: "Game not found" }, { status: 404 });
+    } else {
+      return NextResponse.json({ error: "Device already registered" }, { status: 409 });
+    }
+
+  } catch (err: any) {
+    console.error("Assign Device Error:", err);
+    return NextResponse.json({ error: "Erro interno", message: err.message }, { status: 500 });
   }
+}
 
-  await game.save();
+export async function DELETE(
+  req: Request, 
+  ctx: { params: Promise<{ gameId: string }> }
+) {
+  try {
+    // 1. Aguardar params
+    const { gameId } = await ctx.params;
 
-  return NextResponse.json({
-    ok: true,
-    gameId,
-    created,
-    updated,
-    count: deviceIds.length,
-  });
+    // 2. Extrair e validar deviceId
+    const url = new URL(req.url);
+    const deviceId = url.searchParams.get("deviceId");
+
+    if (!deviceId) {
+      return NextResponse.json(
+        { error: "O parâmetro 'deviceId' é obrigatório." }, 
+        { status: 400 }
+      );
+    }
+
+    const isGameIdValid = await Game.exists({ _id: gameId });
+    if (!isGameIdValid) {
+      return NextResponse.json(
+        { error: "Game not found." }, 
+        { status: 404 }
+      );
+    }
+
+    await dbConnect();
+
+    const result = await Game.updateOne(
+      { _id: gameId },
+      { $pull: { assignedDevices: { deviceId: deviceId } } }
+    );
+
+    // 5. Verificar se o jogo existia
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: "Jogo não encontrado." }, { status: 404 });
+    }
+
+    // Sucesso
+    return NextResponse.json({ ok: true });
+
+  } catch (error) {
+    console.error("Erro ao remover device:", error);
+    return NextResponse.json(
+      { error: "Erro interno ao processar pedido." }, 
+      { status: 500 }
+    );
+  }
 }

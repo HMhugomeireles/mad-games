@@ -5,7 +5,7 @@ import Game, { GameDoc } from "@/lib/db/models/game";
 
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ gameId: string }> }) {
-    const { gameId } = await ctx.params; // Next 15: params é Promise
+    const { gameId } = await ctx.params;
     await dbConnect();
 
 
@@ -17,7 +17,7 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ gameId: str
 }
 
 export async function UPDATE(_req: Request, ctx: { params: Promise<{ gameId: string }> }) {
-    const { gameId } = await ctx.params; // Next 15: params é Promise
+    const { gameId } = await ctx.params;
     await dbConnect();
     
     const game = await Game.findByIdAndUpdate(gameId, { updatedAt: new Date().toISOString() });
@@ -35,6 +35,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ gameId: string 
   try {
     await dbConnect();
 
+    const { searchParams } = new URL(req.url);
+    const filter = (searchParams.get("filter") as "today" | "week") || "today";
+    
     const { gameId } = await ctx.params;
 
     if (!gameId || typeof gameId !== "string") {
@@ -57,7 +60,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ gameId: string 
     return NextResponse.json(
       {
         success: true,
-        data: game.at(0) || null,
+        data: game || null,
       },
       { status: 200 }
     );
