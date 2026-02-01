@@ -2,7 +2,7 @@
 // FILE: app/admin/device/page.tsx
 // ==============================
 import { dbConnect } from "@/lib/db/mongo";
-import Device from "@/lib/db/models/device";
+import Device, { DeviceDoc } from "@/lib/db/models/device";
 import Link from "next/link";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,18 +15,7 @@ export const runtime = "nodejs";
 
 export default async function DevicesPage() {
   await dbConnect();
-  const rows = await Device.find().sort({ createdAt: -1 }).lean();
-
-  const devices = rows.map((d: any) => ({
-    id: (d.id ?? d._id)?.toString(),
-    name: d.name ?? "",
-    mac: d.mac ?? null,
-    description: d.description ?? "",
-    type: (d.type ?? "eletronic") as "eletronic" | "bracelet",
-    status: (d.status ?? "offline") as "online" | "offline",
-    createdAt: d.createdAt ? new Date(d.createdAt).toISOString() : undefined,
-    updatedAt: d.updatedAt ? new Date(d.updatedAt).toISOString() : undefined,
-  }));
+  const devices = await Device.find().sort({ createdAt: -1 }).lean() as any[];
 
   return (
     <div className="container mx-auto p-6">

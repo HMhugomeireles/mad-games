@@ -1,6 +1,3 @@
-// =====================================
-// FILE: app/admin/game/create/page.tsx
-// =====================================
 "use client";
 
 import * as React from "react";
@@ -8,14 +5,14 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-
-// shadcn/ui
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchFieldMaps } from "@/lib/http/field-map";
 
 // Se já tiveres isto em '@/domain/gameModes', substitui pelo import
 const GAME_MODES = [
@@ -39,8 +36,6 @@ type FormValues = z.infer<typeof Schema>;
 
 export default function GameCreatePage() {
   const router = useRouter();
-  const [fieldMaps, setFieldMaps] = React.useState<{ id: string; fieldMap: string }[]>([]);
-  const [loadingFms, setLoadingFms] = React.useState(true);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(Schema),
@@ -53,20 +48,10 @@ export default function GameCreatePage() {
     mode: "onBlur",
   });
 
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/field-map", { cache: "no-store" });
-        const list = await res.json();
-        const items = (list || []).map((x: any) => ({ id: String(x.id ?? x._id), fieldMap: x.fieldMap || "" }));
-        setFieldMaps(items);
-      } catch (e: any) {
-        toast.error("Falha a carregar field maps", { description: e?.message || "Erro desconhecido" });
-      } finally {
-        setLoadingFms(false);
-      }
-    })();
-  }, []);
+  const { data: fieldMapData, isLoading: loadingFms } = useQuery({
+    queryKey: ["fieldMaps"],
+    queryFn: fetchFieldMaps
+  });
 
   const onSubmit = async (values: FormValues) => {
     const payload: Record<string, any> = {
@@ -74,7 +59,7 @@ export default function GameCreatePage() {
       type: values.type,
       fieldMapId: values.fieldMapId,
     };
-    if (values.date) payload.date = values.date; // backend com z.coerce.date aceita
+    if (values.date) payload.date = values.date;
 
     try {
       const res = await fetch("/api/games", {
@@ -85,11 +70,11 @@ export default function GameCreatePage() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error ? JSON.stringify(json.error) : res.statusText);
 
-      toast.success("Jogo criado com sucesso!", { description: values.name });
+      toast.success("Create game event successfully!", { description: values.name });
       router.push("/admin/game");
     } catch (e: any) {
-      const msg = e?.message || "Erro desconhecido";
-      toast.error("Falha ao criar jogo", { description: msg });
+      const msg = e?.message || "Unknown error";
+      toast.error("Error creating game event", { description: msg });
     }
   };
 
@@ -97,8 +82,8 @@ export default function GameCreatePage() {
     <div className="container mx-auto max-w-2xl p-6">
       <Card>
         <CardHeader>
-          <CardTitle>Criar jogo</CardTitle>
-          <CardDescription>Defina o nome, o field map, o modo e a data do jogo.</CardDescription>
+          <CardTitle>Create game event</CardTitle>
+          <CardDescription>Define the name, field map, mode, and date of the game event.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -134,11 +119,11 @@ export default function GameCreatePage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {fieldMaps.length === 0 ? (
+                          {fieldMapData?.length === 0 ? (
                             <SelectItem disabled value="no-fm">Sem field maps</SelectItem>
                           ) : (
-                            fieldMaps.map((fm) => (
-                              <SelectItem key={fm.id} value={fm.id}>
+                            fieldMapData?.map((fm) => (
+                              <SelectItem key={fm._id} value={fm._id}>
                                 {fm.fieldMap}
                               </SelectItem>
                             ))

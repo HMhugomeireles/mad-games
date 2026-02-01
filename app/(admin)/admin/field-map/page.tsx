@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
-import FieldMapCreateButton from "@/app/admin/field-map/_components/field-map-create-button";
-import FieldMapRowActions from "@/app/admin/field-map/_components/field-map-row-actions";
+import FieldMapCreateButton from "@/app/(admin)/admin/field-map/_components/field-map-create-button";
+import FieldMapRowActions from "@/app/(admin)/admin/field-map/_components/field-map-row-actions";
 
 export const revalidate = 0;
 export const dynamic = "force-dynamic";

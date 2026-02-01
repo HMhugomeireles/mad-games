@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { BadgeCheck, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,17 +29,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { cn, normalizeMac } from "@/lib/utils";
-
-type Device = {
-  id: string;
-  name: string;
-  mac: string | null;
-  description: string;
-  type: "eletronic" | "bracelet";
-  status: "online" | "offline";
-  createdAt?: string;
-  updatedAt?: string;
-};
+import { DeviceDoc } from "@/lib/db/models/device";
 
 const DeviceFormSchema = z.object({
   name: z.string().trim().min(1, "Nome é obrigatório"),
@@ -53,22 +43,21 @@ const DeviceFormSchema = z.object({
       "MAC inválido. Use 00:11:22:33:44:55 ou 001122334455"
     ),
   description: z.string().trim().optional(),
-  type: z.enum(["eletronic", "bracelet"]).default("eletronic"),
+  variant: z.enum(["electronic", "bracelet"]).default("electronic"),
   status: z.enum(["online", "offline"]).default("offline"),
+  groupType: z.enum(["individual", "team", "game", "settings", "respawn"]).default("individual"),
+  group: z.enum(["A00", "B00", "C00", "D00", "E00"]).optional(),
 });
 type DeviceFormValues = z.infer<typeof DeviceFormSchema>;
 
-export function DeviceTable({ devices }: { devices: Device[] }) {
+export function DeviceTable({ devices }: { devices: DeviceDoc[] }) {
   const router = useRouter();
 
   const [open, setOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [current, setCurrent] = React.useState<Device | null>(null);
-
-  const eletronic = React.useMemo(() => devices.filter((d) => d.type === "eletronic"), [devices]);
-  const bracelet = React.useMemo(() => devices.filter((d) => d.type === "bracelet"), [devices]);
+  const [current, setCurrent] = React.useState<DeviceDoc | null>(null);
 
   const form = useForm<DeviceFormValues>({
     resolver: zodResolver(DeviceFormSchema) as Resolver<DeviceFormValues>,
@@ -76,8 +65,10 @@ export function DeviceTable({ devices }: { devices: Device[] }) {
       name: "",
       mac: "",
       description: "",
-      type: "eletronic",
+      variant: "electronic",
       status: "offline",
+      groupType: "individual",
+      group: undefined,
     },
     mode: "onBlur",
   });
@@ -88,12 +79,14 @@ export function DeviceTable({ devices }: { devices: Device[] }) {
       name: current.name ?? "",
       mac: current.mac ?? "",
       description: current.description ?? "",
-      type: current.type,
+      variant: current.variant,
       status: current.status,
+      groupType: current.groupType,
+      group: current.group ?? undefined,
     });
   }, [current, form]);
 
-  function onRowClick(d: Device) {
+  function onRowClick(d: DeviceDoc) {
     setCurrent({ ...d });
     setError(null);
     setOpen(true);
@@ -114,12 +107,14 @@ export function DeviceTable({ devices }: { devices: Device[] }) {
       name: values.name.trim(),
       mac,
       description: values.description?.trim() ?? "",
-      type: values.type,
+      variant: values.variant,
       status: values.status,
+      groupType: values.groupType,
+      group: values.group,
     };
 
     try {
-      const res = await fetch(`/api/devices/${current.id}`, {
+      const res = await fetch(`/api/devices/${current._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -142,7 +137,7 @@ export function DeviceTable({ devices }: { devices: Device[] }) {
     if (!current) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/devices/${current.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/devices/${current._id}`, { method: "DELETE" });
       const j = await safeJson(res);
       if (!res.ok) throw new Error(j?.message || `Erro ao apagar (HTTP ${res.status})`);
 
@@ -159,26 +154,14 @@ export function DeviceTable({ devices }: { devices: Device[] }) {
   return (
     <>
       {/* grid 2 colunas em telas >= md */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6">
         {/* CARD ELETRONIC */}
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Eletronic</CardTitle>
-            <CardDescription>{eletronic.length} device(s)</CardDescription>
+            <CardDescription>{devices.length} device(s)</CardDescription>
           </CardHeader>
           <CardContent>
-            <DeviceCardTable devices={eletronic} onClickRow={onRowClick} />
-          </CardContent>
-        </Card>
-
-        {/* CARD BRACELET */}
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle>Bracelet</CardTitle>
-            <CardDescription>{bracelet.length} device(s)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DeviceCardTable devices={bracelet} onClickRow={onRowClick} />
+            <DeviceCardTable devices={devices} onClickRow={onRowClick} />
           </CardContent>
         </Card>
       </div>
@@ -223,7 +206,7 @@ export function DeviceTable({ devices }: { devices: Device[] }) {
 
                   <FormField
                     control={form.control}
-                    name="type"
+                    name="variant"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Tipo</FormLabel>
@@ -234,7 +217,7 @@ export function DeviceTable({ devices }: { devices: Device[] }) {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="eletronic">eletronic</SelectItem>
+                            <SelectItem value="electronic">electronic</SelectItem>
                             <SelectItem value="bracelet">bracelet</SelectItem>
                           </SelectContent>
                         </Select>
@@ -260,10 +243,10 @@ export function DeviceTable({ devices }: { devices: Device[] }) {
 
                 <FormField
                   control={form.control}
-                  name="status"
+                  name="groupType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Status</FormLabel>
+                      <FormLabel>Group Type</FormLabel>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger>
@@ -271,8 +254,36 @@ export function DeviceTable({ devices }: { devices: Device[] }) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="online">online</SelectItem>
-                          <SelectItem value="offline">offline</SelectItem>
+                          <SelectItem value="individual">individual</SelectItem>
+                          <SelectItem value="team">team</SelectItem>
+                          <SelectItem value="game">game</SelectItem>
+                          <SelectItem value="settings">settings</SelectItem>
+                          <SelectItem value="respawn">respawn</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="group"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Group</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="A00">A00</SelectItem>
+                          <SelectItem value="B00">B00</SelectItem>
+                          <SelectItem value="C00">C00</SelectItem>
+                          <SelectItem value="D00">D00</SelectItem>
+                          <SelectItem value="E00">E00</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -332,8 +343,8 @@ function DeviceCardTable({
   devices,
   onClickRow,
 }: {
-  devices: Device[];
-  onClickRow: (d: Device) => void;
+  devices: DeviceDoc[];
+  onClickRow: (d: DeviceDoc) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -355,7 +366,7 @@ function DeviceCardTable({
           ) : (
             devices.map((d) => (
               <TableRow
-                key={d.id}
+                key={d._id}
                 onClick={() => onClickRow(d)}
                 className={cn("cursor-pointer hover:bg-muted/40")}
               >

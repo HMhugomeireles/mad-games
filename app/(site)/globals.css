@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* --- 1. Definição do Tema (Paleta 'Bullet UI') --- */
+@theme {
+  /* Fundo principal (Cinza Azulado muito escuro - Gunmetal) */
+  --color-bullet-dark: #0f1216;
+  
+  /* Painéis e Inputs (Um tom ligeiramente acima do fundo) */
+  --color-bullet-panel: #1a2026;
+  --color-bullet-panel-lighter: #262e36;
+  
+  /* Acento Principal (O Laranja/Dourado das imagens) */
+  --color-bullet-accent: #d97706; /* Amber 600 base */
+  --color-bullet-glow: #fbbf24;   /* Amber 300 para brilhos */
+  
+  /* Texto */
+  --color-bullet-text: #e2e8f0;   /* Slate 200 (Branco sujo/Prata) */
+  --color-bullet-muted: #64748b;  /* Slate 500 (Texto secundário) */
+
+  /* Fonte */
+  --font-mono: "Share Tech Mono", monospace;
+}
+
+/* --- 2. Estilos Base --- */
+@layer base {
+  body {
+    @apply bg-bullet-dark text-bullet-text font-mono antialiased;
+    
+    /* BACKGROUND COMPLEXO:
+       Simula a vinheta escura das imagens de referência.
+    */
+    background-image: 
+      /* Vinheta: Escuro nos cantos, "foco" no centro */
+      radial-gradient(circle at 50% 30%, rgba(30, 41, 59, 0.2) 0%, rgba(15, 18, 22, 1) 90%),
+      /* Textura subtil de ruído ou grelha para dar realismo */
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      
+    background-size: 100% 100%, 40px 40px, 40px 40px;
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+/* --- 3. Utilitários Específicos para o estilo FPS --- */
+@layer utilities {
+  /* Brilho laranja do botão e itens selecionados */
+  .glow-orange {
+    box-shadow: 0 0 15px rgba(217, 119, 6, 0.3);
+  }
+
+  /* Corte angular (chamfer) nos botões, típico deste UI */
+  .clip-military {
+    clip-path: polygon(0 0, 100% 0, 100% 85%, 95% 100%, 0 100%);
+  }
+  
+  /* Input autofill fix (para não ficar branco do browser) */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--color-bullet-text);
+    -webkit-box-shadow: 0 0 0px 1000px var(--color-bullet-panel) inset;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+}
