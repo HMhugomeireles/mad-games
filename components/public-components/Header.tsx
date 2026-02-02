@@ -1,18 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
-export function Header() {
+const navItems = [
+  { name: 'HOME', href: '/' },
+  { name: 'EVENTS', href: '/events' },
+  { name: 'RANKING', href: '/rankings' },
+  { name: 'SHOP', href: '/shop' },
+];
+
+export function Header({ session }: { session: any }) {
   const pathname = usePathname();
-
-  const navItems = [
-    { name: 'HOME', href: '/' },
-    { name: 'EVENTS', href: '/events' },
-    { name: 'RANKING', href: '/ranking' },
-    { name: 'SHOP', href: '/shop' },
-  ];
 
   return (
     <header className="sticky top-0 z-50 w-full bg-bullet-dark/95 border-b border-white/10 backdrop-blur-md shadow-lg font-mono">
@@ -77,26 +77,36 @@ export function Header() {
             })}
           </nav>
 
-          {/* --- 3. BOTÃO DE LOGIN --- */}
-          <Link href="/login">
-            <button
-              className="
-                relative group overflow-hidden
-                bg-gradient-to-r from-bullet-accent to-orange-600 
-                hover:to-orange-500 text-white 
-                text-[11px] font-bold uppercase tracking-[0.2em]
-                py-2.5 px-8 shadow-[0_0_15px_rgba(217,119,6,0.3)]
-                transition-all duration-200 hover:scale-105 cursor-pointer
-                border-t border-orange-400/30
-              "
-              style={{ clipPath: 'polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%)' }} // Corte Militar Duplo
-            >
-              <span className="relative z-10">Login</span>
+          {
+            session !== null ? (
+              <div>
+                <Avatar>
+                  <AvatarImage src={session.user?.image || undefined} />
+                  <AvatarFallback>{session.user?.name?.charAt(0) || 'U'}</AvatarFallback>
+                </Avatar>
+              </div>
+            ) : (
+              <Link href="/login">
+                <button
+                  className="
+                    relative group overflow-hidden
+                    bg-gradient-to-r from-bullet-accent to-orange-600 
+                    hover:to-orange-500 text-white 
+                    text-[11px] font-bold uppercase tracking-[0.2em]
+                    py-2.5 px-8 shadow-[0_0_15px_rgba(217,119,6,0.3)]
+                    transition-all duration-200 hover:scale-105 cursor-pointer
+                    border-t border-orange-400/30
+                  "
+                  style={{ clipPath: 'polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%)' }} // Corte Militar Duplo
+                >
+                  <span className="relative z-10">Login</span>
 
-              {/* Efeito de brilho ao passar o rato (Scanline) */}
-              <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 skew-x-12 z-0"></div>
-            </button>
-          </Link>
+                  {/* Efeito de brilho ao passar o rato (Scanline) */}
+                  <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500 skew-x-12 z-0"></div>
+                </button>
+              </Link>
+            )
+          }
 
           {/* Mobile Menu Icon (Hamburger) - Visível apenas em ecrãs pequenos */}
           <button className="md:hidden text-bullet-muted hover:text-white">

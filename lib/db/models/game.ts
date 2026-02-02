@@ -1,4 +1,4 @@
-import { Schema, model, models, Document } from "mongoose";
+import { Schema, model, models, Document, Types } from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 import { en } from "zod/v4/locales";
 import { DEVICE_GROUP, STATUS_OPTIONS, VARIANTS_OPTIONS } from "./device";
@@ -141,7 +141,7 @@ const GameSchema = new Schema(
   }
 )
 
-export interface GameDoc extends Document {
+export interface GameDoc extends Document<string> {
   _id: string;
   name: string;
   date?: Date;

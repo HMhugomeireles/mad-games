@@ -1,12 +1,15 @@
 'use client';
 
-import Link from "next/link";
-import { TertiaryButton } from "../public-components/ui/button";
-import z from "zod";
-import { useForm } from "react-hook-form";
+import { authClient } from "@/lib/auth/client";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import z from "zod";
+import { TertiaryButton } from "../public-components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "../ui/form";
 import { TacticalInput } from "../ui/input";
+import { toast } from "sonner";
 
 const Schema = z.object({
   username: z.string().min(1, "Username is required").trim(),
@@ -14,6 +17,7 @@ const Schema = z.object({
 });
 
 export default function Login() {
+  const router = useRouter();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(Schema),
@@ -26,7 +30,26 @@ export default function Login() {
 
   type FormValues = z.infer<typeof Schema>;
 
-  const onSubmit = async (values: FormValues) => { }
+  const onSubmit = async (values: FormValues) => {
+    await authClient.signIn.email({
+      email: values.username,
+      password: values.password,
+    }, {
+      onSuccess: () => {
+        router.push("/"); // Redireciona após login
+      },
+      onError: (ctx) => {
+        toast.error(ctx.error.message)
+      }
+    });
+  }
+
+  const handleGoogleSignIn = async () => {
+    await authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/",
+    });
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
@@ -49,7 +72,9 @@ export default function Login() {
         </div>
 
         <div className=''>
-          <TertiaryButton>
+          <TertiaryButton
+            onClick={handleGoogleSignIn}
+          >
             <div className="flex items-center justify-center rounded-sm">
               <svg
                 role="img"
