@@ -178,7 +178,7 @@ export default function HomePage() {
           {/* Section Header */}
           <div className="flex items-end justify-between border-b border-white/10 pb-4">
             <h2 className="text-2xl text-white uppercase font-bold tracking-wide">
-              Progamati Operations Programati Events
+              Events
             </h2>
             <Link href="/events" className="text-bullet-accent text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">
               View All Events &rarr;

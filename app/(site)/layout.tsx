@@ -36,12 +36,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     headers: await headers()
   })
 
+  const serializedSession = session ? JSON.parse(JSON.stringify(session)) : null;
+
   return (
     <html lang="pt" suppressHydrationWarning>
       <body className={`min-h-screen bg-background text-foreground antialiased ${shareTechMono.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <Providers>
-            <Header session={session} />
+            <Header session={serializedSession} />
             {children}
             <Footer />
           </Providers>
