@@ -79,12 +79,12 @@ export function Header({ session }: { session: any }) {
 
           {
             session !== null ? (
-              <div>
+              <Link href={`/operator/${session.user?.id}`}>
                 <Avatar>
                   <AvatarImage src={session.user?.image || undefined} />
                   <AvatarFallback>{session.user?.name?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
-              </div>
+              </Link>
             ) : (
               <Link href="/login">
                 <button

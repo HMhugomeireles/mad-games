@@ -1,6 +1,7 @@
+import { ShopUnderConstruction } from "@/components/public-components/ShopUnderConstruction";
 
 export default function Shop() {
     return (
-        <div>Shop Page</div>
+        <ShopUnderConstruction />
     );
 }

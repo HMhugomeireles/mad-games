@@ -9,3 +9,12 @@ player_device_game_action_revive -> quando o player
 
 Respawn Device
 
+recive_data_from_player -> pode ser um array com 2 entry, respawn recebe estes dados e mete numa queu ate ter 30  registos
+
+send_data_to_master -> 
+
+
+
+Master device 
+
+revice_data_from    
