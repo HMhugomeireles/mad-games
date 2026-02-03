@@ -209,7 +209,7 @@ export default function HomePage() {
                 Join the elite. Tactical games.
                 4 games 2 Squads. Prove your dominance in the arena and claim your points.
               </p>
-              <PrimaryButton>Register player</PrimaryButton>
+              <PrimaryButton>Buy the ticket</PrimaryButton>
             </div>
           </div>
 
