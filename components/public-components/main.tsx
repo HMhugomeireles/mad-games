@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { PrimaryButton, SecondaryButton } from './ui/button';
+import { authClient } from '@/lib/auth/client';
 
 
 // --- MOCK DATA ---
@@ -111,41 +112,48 @@ const RankingRow = ({ rank, player }: { rank: number; player: { name: string; sc
 export default function HomePage() {
   const [activeRankingTab, setActiveRankingTab] = useState<keyof typeof RANKINGS>('GERAL');
 
+  const {
+    data: session,
+    isPending, // IMPORTANTE: Usa isto para não mostrar "Não logado" enquanto ainda carrega
+    error
+  } = authClient.useSession();
+
   return (
     <div className="min-h-screen bg-bullet-dark font-mono text-bullet-text pb-20">
 
-      {/* --- 1. HERO SECTION --- */}
-      <section className="relative h-[60vh] flex items-center border-b border-white/10 overflow-hidden">
+      {!session && (
+        <section className="relative h-[60vh] flex items-center border-b border-white/10 overflow-hidden">
 
-        {/* Content */}
-        <div className="relative z-10 max-w-[1600px] mx-auto px-8 w-full flex flex-col justify-center h-full">
-          <div className="inline-flex items-center gap-2 text-bullet-accent text-xs font-bold uppercase tracking-[0.3em] mb-4">
-            <div className="w-2 h-2 bg-bullet-accent animate-pulse"></div>
-            System Online
+          {/* Content */}
+          <div className="relative z-10 max-w-[1600px] mx-auto px-8 w-full flex flex-col justify-center h-full">
+            <div className="inline-flex items-center gap-2 text-bullet-accent text-xs font-bold uppercase tracking-[0.3em] mb-4">
+              <div className="w-2 h-2 bg-bullet-accent animate-pulse"></div>
+              System Online
+            </div>
+
+            <h1 className="text-6xl md:text-8xl font-black text-white uppercase tracking-tighter mb-2 leading-none">
+              Deploy <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-bullet-accent to-white">Into Action</span>
+            </h1>
+
+            <p className="max-w-xl text-bullet-muted text-sm md:text-base leading-relaxed mb-8 border-l-2 border-bullet-accent pl-4">
+              Welcome to the ultimate competitive ecosystem. Track your stats,
+              join elite events, and dominate the leaderboard.
+              Player to win, player for fun.
+              Verify your loadout before entry.
+            </p>
+
+            <div className="flex flex-wrap gap-4">
+              <PrimaryButton onClick={() => console.log('Join')}>
+                Creacte Account
+              </PrimaryButton>
+            </div>
           </div>
 
-          <h1 className="text-6xl md:text-8xl font-black text-white uppercase tracking-tighter mb-2 leading-none">
-            Deploy <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-bullet-accent to-white">Into Action</span>
-          </h1>
-
-          <p className="max-w-xl text-bullet-muted text-sm md:text-base leading-relaxed mb-8 border-l-2 border-bullet-accent pl-4">
-            Welcome to the ultimate competitive ecosystem. Track your stats,
-            join elite events, and dominate the leaderboard.
-            Player to win, player for fun.
-            Verify your loadout before entry.
-          </p>
-
-          <div className="flex flex-wrap gap-4">
-            <PrimaryButton onClick={() => console.log('Join')}>
-              Creacte Account
-            </PrimaryButton>
-          </div>
-        </div>
-
-        {/* Decorative Grid Right */}
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 border-l border-white/5 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-      </section>
+          {/* Decorative Grid Right */}
+          <div className="absolute right-0 top-0 bottom-0 w-1/3 border-l border-white/5 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+        </section>
+      )}
 
       {/* --- 2. GLOBAL STATS STRIP --- */}
       <div className="border-b border-white/10 bg-black/40 backdrop-blur-sm">
